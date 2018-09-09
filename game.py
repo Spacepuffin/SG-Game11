@@ -6,6 +6,7 @@ import threading
 ####   GLOBAL VARIABLES   ####
 ##############################
 
+score = 0 # score; also counter for time
 scrSpd = 30 #scroll speed
 entityList = []
 
@@ -14,8 +15,9 @@ entityList = []
 ####################
 
 class entity():
-    def __init__(self):
+    def __init__(self, id):
         entityList.append(self)
+        self.id = id
         self.pos = [0,0]
         self.vel = [0,0]
         self.imgList = []
@@ -39,8 +41,8 @@ class entity():
 ####################
         
 class player(entity):
-    def __init__(self):
-        entity.__init__(self)
+    def __init__(self, id):
+        entity.__init__(self, id)
         self.shootClip = False
         self.canShoot = True
 
@@ -48,7 +50,7 @@ class player(entity):
         #shooty stuff here
         entity.update(self)
 
-p = player()
+p = player(0)
 ##################
 ####   MAIN   ####
 ##################
