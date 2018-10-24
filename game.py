@@ -1,12 +1,11 @@
 from tkinter import *
 from math import *
-import threading
+from time import *
 
 ##############################
 ####   GLOBAL VARIABLES   ####
 ##############################
-
-score = 0 # score; also counter for time
+score = 0 #score; also counter for time
 scrSpd = 30 #scroll speed
 entityList = []
 
@@ -34,6 +33,7 @@ class entity():
             self.pos[0] += self.vel[0]
             self.pos[1] += self.vel[1]
         self.draw()
+        print(self.id, "updated")
         
 
 ####################
@@ -55,16 +55,12 @@ p = player(0)
 ####   MAIN   ####
 ##################
 
-def setInterval(func, sec): #setInterval function; calls func every sec
-    def funcWrapper():
-        setInterval(func, sec)
-        func()
-    t = threading.Timer(sec, funcWrapper)
-    t.start()
-    return t
-
 def mainUpdate(): #updates everything
     for i in range(len(entityList)): #loops through the list of entities and calls update in all of them
         entityList[i].update
         
-setInterval(mainUpdate, 1/30) #call mainUpdate 30 times/sec
+def runGame():
+    while True:
+        mainUpdate()
+
+runGame()
