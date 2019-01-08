@@ -3,15 +3,17 @@ from math import *
 from time import *
 from random import *
 
-Interface = Tk()
-ctx = Canvas( Interface, width=1200, height=800, background="brown" )
+root = Tk()
+ctx = Canvas( root, width=1200, height=800, background="brown" )
 ctx.pack()
 
 ##############################
 ####   GLOBAL VARIABLES   ####
 ##############################
 def setInitialValues():
-    global t, score, scrSpd, entityList, gravity, p, platformList, pBodyImgs, pArmImgs, tutImgs
+    #General Variables:
+    global t, score, scrSpd, entityList, gravity, p, platformList
+
     t = 0
     score = 0 #score; also counter for time
     scrSpd = 30 #scroll speed
@@ -19,11 +21,22 @@ def setInitialValues():
     gravity = 2
     p = player(0)
     platformList = []
+
+    #Input-related Variables:
+    global keyA, keyD, xMouse, yMouse
     
-    #images:
+    keyA = False
+    keyD = False
+    xMouse = 0
+    yMouse = 0
+    
+    #Images:
+    global pBodyImgs, pArmImgs, tutImgs
+    
     pBodyImgs = []
     pArmImgs = []
     tutImgs = []
+    
     for i in range(14): # load Character body images
         fileName = "assets\character" + format(i, '04d')+ ".gif"
         image = PhotoImage(file = fileName)
@@ -70,8 +83,10 @@ class player(entity):
     def __init__(self, id):
         entity.__init__(self, id)
         self.pos = [400, -200]
-        self.shotTime = 100
+        self.shotCharge = 100
         self.invulnerable = False
+        self.moveSpeed = 10
+        
     def draw(self):
         if not (self.invulnerable and t%4 < 2): #blink if invulnerable
             if self.airborne:
@@ -103,19 +118,20 @@ class player(entity):
             else:
                 self.airborne = True
                 
-                    
+    def onClick(self): #Fire the cannons! (spill the hot drinks!)
+        print ("FIRE!")
     def update(self):
-        #shooty stuff here
         self.checkCollisions()
         entity.update(self)
+        
+        if keyA: self.pos[0] -= self.moveSpeed
+        if keyD: self.pos[0] += self.moveSpeed   
         self.draw()
 
-            
-    
-#######################
-####   PLATFORMS   ####
-#######################
-        
+##################
+##   PLATFORM   ##
+##################
+
 class platform(entity):
     def __init__(self, id, length, y):
         platformList.append(self)
@@ -131,10 +147,12 @@ class platform(entity):
         self.draw()
         entity.update(self)
 
-##################
-####   MAIN   ####
-##################
 
+##   Pause Function   ##
+
+def pauseGame():
+    print("Pause Game")
+##   Main Update   ##
 def mainUpdate(): #updates everything
     global t, entityList
     for i in range(len(entityList)): #loops through the list of entities and calls update in all of them
@@ -143,6 +161,40 @@ def mainUpdate(): #updates everything
     ctx.delete(ALL)
     t+=1
 
+
+##   Input Handlers   ##
+
+def mouseClickHandler( event ):
+    global p
+    
+    p.onclick() #call the Onclick function in the player class
+
+def mouseMotionHandler( event ):
+    global xMouse, yMouse
+
+    xMouse = event.x
+    yMouse = event.y
+
+def keyDownHandler( event ):
+    global keyA, keyD
+    if event.keysym in ["Escape", "p", "P", "q", "Q"]: # Bind Escape Key, P and Q to pause
+        pauseGame()
+    if event.keysym in ["a", "A"]:
+        keyA = True
+    if event.keysym in ["d", "D"]:      
+        keyD = True
+        
+def keyUpHandler( event ):
+    global keyA, keyD
+                        
+    if event.keysym in ["a", "A"]:
+        keyA = False
+    if event.keysym in ["d", "D"]:      
+        keyD = False
+                        
+#####################
+####   RUNGAME   ####
+#####################
     
 def runGame():
     setInitialValues()
@@ -154,4 +206,14 @@ def runGame():
         if t%30 == 0:
             p = platform(t,500,500)
 
-runGame()
+root.after( 0, runGame )
+
+ctx.bind( "<Button-1>", mouseClickHandler )
+ctx.bind( "<Motion>", mouseMotionHandler )
+ctx.bind( "<Key>", keyDownHandler )
+ctx.bind( "<KeyRelease>", keyUpHandler )
+
+
+ctx.pack()
+ctx.focus_set()
+root.mainloop()
