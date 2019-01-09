@@ -4,7 +4,7 @@ from time import *
 from random import *
 
 root = Tk()
-ctx = Canvas( root, width=1200, height=800, background="brown" )
+ctx = Canvas( root, width=1200, height=800, background="dodgerblue" )
 ctx.pack()
 
 ##############################
@@ -50,7 +50,10 @@ def setInitialValues():
         image = PhotoImage(file = fileName)
         tutImgs.append(image)
 
-    
+def pVector(magnitude, angle):
+	x = magnitude*cos(angle)
+	y = magnitude*sin(angle)
+	return [x, y]
 
 ####################
 ####   ENTITY   ####
@@ -86,6 +89,7 @@ class player(entity):
         self.shotCharge = 100
         self.invulnerable = False
         self.moveSpeed = 10
+        self.angleMouse = 0
         
     def draw(self):
         if not (self.invulnerable and t%4 < 2): #blink if invulnerable
@@ -99,6 +103,19 @@ class player(entity):
             else:
                 ctx.create_image(self.pos[0], self.pos[1], image = pBodyImgs[t%12], anchor = CENTER)
                 ctx.create_image(self.pos[0], self.pos[1], image = pArmImgs[t%6], anchor = CENTER)
+
+        reticle = []
+        reticle += pVector(40, self.angleMouse)
+        reticle += pVector(50, self.angleMouse + 0.15)
+        reticle += pVector(50, self.angleMouse - 0.15)
+        
+        for i in range(len(reticle)): #center the aim indicator on the player
+            if i%2 == 0:
+                reticle[i] += self.pos[0]
+            else:
+                reticle[i] += self.pos[1]
+    
+        ctx.create_polygon(*reticle, fill = "white",outline = "white")
 
     def checkCollisions(self):
         for platform in platformList:
@@ -119,13 +136,23 @@ class player(entity):
                 self.airborne = True
                 
     def onClick(self): #Fire the cannons! (spill the hot drinks!)
-        print ("FIRE!")
-    def update(self):
-        self.checkCollisions()
-        entity.update(self)
         
-        if keyA: self.pos[0] -= self.moveSpeed
-        if keyD: self.pos[0] += self.moveSpeed   
+        recoil = pVector(30, self.angleMouse + pi)
+        self.vel[0] += recoil[0]
+        self.vel[1] += recoil[1]
+        
+    def update(self):
+        self.angleMouse = atan2(yMouse - self.pos[1], xMouse - self.pos[0])
+        self.checkCollisions()
+        
+        if keyA:
+            self.pos[0] -= self.moveSpeed
+        if keyD:
+            self.pos[0] += self.moveSpeed
+        if not self.airborne:
+            print(self.pos[0]) DO A MIN/MAX THING HERE
+            self.vel[0] +=  (200 - self.pos[0])/200)
+        entity.update(self)
         self.draw()
 
 ##################
@@ -161,13 +188,12 @@ def mainUpdate(): #updates everything
     ctx.delete(ALL)
     t+=1
 
-
 ##   Input Handlers   ##
 
 def mouseClickHandler( event ):
     global p
-    
-    p.onclick() #call the Onclick function in the player class
+
+    p.onClick() #call the Onclick function in the player class
 
 def mouseMotionHandler( event ):
     global xMouse, yMouse
@@ -177,6 +203,7 @@ def mouseMotionHandler( event ):
 
 def keyDownHandler( event ):
     global keyA, keyD
+    
     if event.keysym in ["Escape", "p", "P", "q", "Q"]: # Bind Escape Key, P and Q to pause
         pauseGame()
     if event.keysym in ["a", "A"]:
@@ -198,13 +225,13 @@ def keyUpHandler( event ):
     
 def runGame():
     setInitialValues()
-    p = platform(10000, 500, 500)
+    p = platform(10000, 5000, 500)
     while True:
         mainUpdate()
         sleep(1/30)
         
         if t%30 == 0:
-            p = platform(t,500,500)
+            p = platform(t,5000,500)
 
 root.after( 0, runGame )
 
