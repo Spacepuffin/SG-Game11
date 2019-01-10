@@ -12,8 +12,9 @@ ctx.pack()
 ##############################
 def setInitialValues():
     #General Variables:
-    global t, score, scrSpd, entityList, gravity, p, platformList
+    global game, t, score, scrSpd, entityList, gravity, p, platformList, projectileList
 
+    game = True
     t = 0
     score = 0 #score; also counter for time
     scrSpd = 30 #scroll speed
@@ -85,8 +86,8 @@ class entity():
 class player(entity):
     def __init__(self, id):
         entity.__init__(self, id)
-        self.pos = [400, -200]
-        self.shotCharge = 100
+        self.pos = [400, -50]
+        self.shotCharge = 0
         self.invulnerable = False
         self.moveSpeed = 10
         self.angleMouse = 0
@@ -118,15 +119,16 @@ class player(entity):
         ctx.create_polygon(*reticle, fill = "white",outline = "white")
 
     def checkCollisions(self):
+        
         for platform in platformList:
             if platform.pos[0] <= self.pos[0] + 24 and platform.pos[0] + platform.length >= self.pos[0] - 24: 
                 if platform.pos[1] >= self.pos[1] + 24 and platform.pos[1] <= self.pos[1] + 24 + self.vel[1]:
                     self.pos[1] = platform.pos[1] -24
                     self.vel[1] = 0
+                    self.vel[0] = 0#Set running speed to 0 when landing.
                     self.airborne = False
-                    break # breaks are so that it only needs to collide with one platform to not be airborne.
+                    break #Stop checking for collisions after the first one.
                 elif self.pos[1] == platform.pos[1] -24:
-                    self.vel[1] = 0
                     self.airborne = False
                     break
                 else:
@@ -136,12 +138,16 @@ class player(entity):
                 self.airborne = True
                 
     def onClick(self): #Fire the cannons! (spill the hot drinks!)
-        
-        recoil = pVector(30, self.angleMouse + pi)
-        self.vel[0] += recoil[0]
-        self.vel[1] += recoil[1]
-        
+        if self.shotCharge >= 100:
+            recoil = pVector(20, self.angleMouse + pi)#launch self with 20 force away from your mouse
+            self.vel[0] += recoil[0]
+            self.vel[1] += recoil[1]
+            self.shotCharge -= 100
+            
     def update(self):
+        if self.shotCharge <= 200:
+            self.shotCharge += 2
+        
         self.angleMouse = atan2(yMouse - self.pos[1], xMouse - self.pos[0])
         self.checkCollisions()
         
@@ -149,12 +155,28 @@ class player(entity):
             self.pos[0] -= self.moveSpeed
         if keyD:
             self.pos[0] += self.moveSpeed
-        if not self.airborne:
-            print(self.pos[0]) DO A MIN/MAX THING HERE
-            self.vel[0] +=  (200 - self.pos[0])/200)
+            
+        if not self.airborne: #Automatically center the player on x = 400 gradually, but not enough to stop motion.
+            if self.pos[0] >= 400:
+                self.pos[0] += max(-1.5,(400-self.pos[0])/10)
+            else:
+                self.pos[0] += min(1.5,(400-self.pos[0])/10)
+                
+        if self.pos[1] >= 850:  #If you fall off the stage:
+            self.pos = [400, -50]
+        
         entity.update(self)
         self.draw()
+        
+####################
+##   PROJECTILE   ##
+####################
 
+class projectile(entity):
+    def __init__(self, id):
+        
+        projectileList.append(self)
+        entity.__init__(self, id)
 ##################
 ##   PLATFORM   ##
 ##################
@@ -178,7 +200,21 @@ class platform(entity):
 ##   Pause Function   ##
 
 def pauseGame():
+    global game
     print("Pause Game")
+    if game:
+        game = False
+    else:
+        game = True
+
+##   Draw HUD   ##
+
+def drawHUD():
+    global score, p
+
+    ctx.create_rectangle(30,230, 60, 230-(p.shotCharge), fill = "brown", outline = "white", width = 3)
+    ctx.create_polygon(63,130,70,135,70,125, fill="white", outline="white")
+
 ##   Main Update   ##
 def mainUpdate(): #updates everything
     global t, entityList
@@ -186,7 +222,7 @@ def mainUpdate(): #updates everything
         entityList[i].update()
     ctx.update()
     ctx.delete(ALL)
-    t+=1
+    t += 1
 
 ##   Input Handlers   ##
 
@@ -227,11 +263,12 @@ def runGame():
     setInitialValues()
     p = platform(10000, 5000, 500)
     while True:
-        mainUpdate()
         sleep(1/30)
-        
-        if t%30 == 0:
-            p = platform(t,5000,500)
+        if game:
+            mainUpdate()
+            drawHUD()
+            if t%30 == 0:
+                p = platform(t,5000,500)
 
 root.after( 0, runGame )
 
