@@ -12,17 +12,25 @@ ctx.pack()
 ##############################
 def setInitialValues():
     #General Variables:
-    global game, t, score, scrSpd, entityList, gravity, p, platformList, projectileList
-
+    global game, t, score, scrSpd, gravity
     game = True
     t = 0
     score = 0 #score; also counter for time
     scrSpd = 30 #scroll speed
-    entityList = []
     gravity = 2
-    p = player(0)
-    platformList = []
+    
+    
 
+    #Lists of Object instances:
+    global entityList, platformList, projectileList, particleList
+    entityList = []
+    platformList = []
+    projectileList = []
+    particleList = []
+
+    #player instance:
+    global p
+    p = player(0)
     #Input-related Variables:
     global keyA, keyD, xMouse, yMouse
     
@@ -139,7 +147,7 @@ class player(entity):
                 
     def onClick(self): #Fire the cannons! (spill the hot drinks!)
         if self.shotCharge >= 100:
-            recoil = pVector(20, self.angleMouse + pi)#launch self with 20 force away from your mouse
+            recoil = pVector(30, self.angleMouse + pi)#launch self with 30 force away from your mouse
             self.vel[0] += recoil[0]
             self.vel[1] += recoil[1]
             self.shotCharge -= 100
@@ -174,28 +182,60 @@ class player(entity):
 
 class projectile(entity):
     def __init__(self, id):
-        
         projectileList.append(self)
+        self.pos = [p.pos[0],p.pos[1]]
+        self.vel = pVector(30 + uniform(-5,5), p.angleMouse + uniform(-0.5,0.5))
+        self.rad = randInt(10,30)
         entity.__init__(self, id)
+        
+    def draw(self):
+        ctx.create_oval(self.pos[0]-self.rad,self.pos[1]-self.rad,self.pos[0]+self.rad,self.pos[1]+self.rad, fill = "#da9d3f", outline = "#da9d3f")
+        
+    def update(self):
+        self.draw()
+        entity.update(self)
+        
 ##################
 ##   PLATFORM   ##
 ##################
 
 class platform(entity):
-    def __init__(self, id, length, y):
+    def __init__(self, id, y, x=1200): # inputting an x value is optional. It defaults to the right side of the screen.
         platformList.append(self)
         entity.__init__(self, id)
-        self.length = length
-        self.pos = [1200,y]
+        self.length = 50
+        self.pos = [x,y]
         self.isFixed = True
-
+    def crumble(self): #destroy self
+        if (self.pos[0] + self.length >= -10):
+            for i in range(randint(3,5)):
+                particle(uniform(0,1),randint(3,5), randint(self.pos[0],self.pos[0]+self.length),randint(self.pos[1],self.pos[1]+self.length),*pVector(randint(0,10), uniform(0,2*pi)))
     def draw(self):
         ctx.create_rectangle(self.pos[0], self.pos[1], self.pos[0] + self.length, self.pos[1] + 5, fill = "white", outline = "white")
 
     def update(self):
         self.draw()
         entity.update(self)
+        if (self.pos[0] + self.length <= -10): # delete self if off-screen
+            self.crumble()
 
+###################
+##   PARTICLES   ##
+###################
+
+class particle(entity):
+    def __init__(self, id, rad, x, y, xVel, yVel):
+        self.pos = [x,y]
+        self.vel = [xVel,yVel]
+        self.rad = rad
+        particleList.append(self)
+        entity.__init__(self, id)
+    def draw(self):
+        ctx.create_oval(self.pos[0]-self.rad,self.pos[1]-self.rad,self.pos[0]+self.rad,self.pos[1]+self.rad, fill = "lightblue", outline = "white")
+    def update(self):
+        self.draw()
+        entity.update(self)
+        
 
 ##   Pause Function   ##
 
@@ -211,8 +251,14 @@ def pauseGame():
 
 def drawHUD():
     global score, p
-
-    ctx.create_rectangle(30,230, 60, 230-(p.shotCharge), fill = "brown", outline = "white", width = 3)
+    gaugeColour = ""
+    if (p.shotCharge >= 100):
+        gaugeColour = "#da9d3f"
+    else:
+        gaugeColour = "grey60"
+        
+        
+    ctx.create_rectangle(30,230, 60, 230-(p.shotCharge), fill = gaugeColour, outline = "white", width = 3)
     ctx.create_polygon(63,130,70,135,70,125, fill="white", outline="white")
 
 ##   Main Update   ##
@@ -261,14 +307,13 @@ def keyUpHandler( event ):
     
 def runGame():
     setInitialValues()
-    p = platform(10000, 5000, 500)
     while True:
         sleep(1/30)
         if game:
             mainUpdate()
             drawHUD()
-            if t%30 == 0:
-                p = platform(t,5000,500)
+            if t%2 == 0:
+                p = platform(t,500)
 
 root.after( 0, runGame )
 
