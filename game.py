@@ -16,7 +16,7 @@ def setInitialValues():
     game = True
     t = 0
     score = 0 #score; also counter for time
-    scrSpd = 30 #scroll speed
+    scrSpd = 20 #scroll speed
     gravity = 2
     
     
@@ -30,7 +30,7 @@ def setInitialValues():
 
     #player instance:
     global p
-    p = player(0)
+    p = player()
     #Input-related Variables:
     global keyA, keyD, xMouse, yMouse
     
@@ -70,9 +70,8 @@ def pVector(magnitude, angle):
 
 class entity():
     global entityList
-    def __init__(self, id):
+    def __init__(self):
         entityList.append(self)
-        self.id = id
         self.pos = [0,0]
         self.vel = [0,0]
         self.isFixed = False #determines if it moves relative to everything or not
@@ -92,8 +91,8 @@ class entity():
 ####################
         
 class player(entity):
-    def __init__(self, id):
-        entity.__init__(self, id)
+    def __init__(self):
+        entity.__init__(self)
         self.pos = [400, -50]
         self.shotCharge = 0
         self.invulnerable = False
@@ -150,6 +149,8 @@ class player(entity):
             recoil = pVector(30, self.angleMouse + pi)#launch self with 30 force away from your mouse
             self.vel[0] += recoil[0]
             self.vel[1] += recoil[1]
+            for i in range(randint(3,5)):
+                projectile()
             self.shotCharge -= 100
             
     def update(self):
@@ -172,6 +173,7 @@ class player(entity):
                 
         if self.pos[1] >= 850:  #If you fall off the stage:
             self.pos = [400, -50]
+            self.vel = [0,0]
         
         entity.update(self)
         self.draw()
@@ -181,12 +183,14 @@ class player(entity):
 ####################
 
 class projectile(entity):
-    def __init__(self, id):
+    def __init__(self):
         projectileList.append(self)
+        entity.__init__(self)
         self.pos = [p.pos[0],p.pos[1]]
         self.vel = pVector(30 + uniform(-5,5), p.angleMouse + uniform(-0.5,0.5))
-        self.rad = randInt(10,30)
-        entity.__init__(self, id)
+        self.rad = randint(10,30)
+        
+        
         
     def draw(self):
         ctx.create_oval(self.pos[0]-self.rad,self.pos[1]-self.rad,self.pos[0]+self.rad,self.pos[1]+self.rad, fill = "#da9d3f", outline = "#da9d3f")
@@ -200,38 +204,48 @@ class projectile(entity):
 ##################
 
 class platform(entity):
-    def __init__(self, id, y, x=1200): # inputting an x value is optional. It defaults to the right side of the screen.
+    def __init__(self, y, x=1200): # inputting an x value is optional. It defaults to the right side of the screen.
         platformList.append(self)
-        entity.__init__(self, id)
+        entity.__init__(self)
         self.length = 50
         self.pos = [x,y]
         self.isFixed = True
+        self.delete = False #Marks this object for deletion
     def crumble(self): #destroy self
         if (self.pos[0] + self.length >= -10):
             for i in range(randint(3,5)):
-                particle(uniform(0,1),randint(3,5), randint(self.pos[0],self.pos[0]+self.length),randint(self.pos[1],self.pos[1]+self.length),*pVector(randint(0,10), uniform(0,2*pi)))
+                particle(randint(3,5), randint(self.pos[0],self.pos[0]+self.length),randint(self.pos[1],self.pos[1]+self.length),*pVector(randint(20,30), uniform(-pi*5/6,-pi*3/4)))
+        self.delete = True
+
     def draw(self):
-        ctx.create_rectangle(self.pos[0], self.pos[1], self.pos[0] + self.length, self.pos[1] + 5, fill = "white", outline = "white")
+        if not self.delete:
+            ctx.create_rectangle(self.pos[0], self.pos[1], self.pos[0] + self.length, self.pos[1] + 5, fill = "white", outline = "white")
 
     def update(self):
         self.draw()
         entity.update(self)
-        if (self.pos[0] + self.length <= -10): # delete self if off-screen
-            self.crumble()
+        if (self.pos[0] + self.length >= p.pos[0]-24 and p.pos[1] + 24 == self.pos[1]): #if the player is touching the platform
+            if (self.pos[0] + self.length - scrSpd < p.pos[0]-24 + p.vel[0]): #if the player is stepping off the platform
+                self.crumble()
+        for proj in projectileList:
+            if (hypot(self.pos[0]-proj.pos[0],self.pos[1]-proj.pos[1]) <= proj.rad or hypot(self.pos[0]+self.length-proj.pos[0],self.pos[1]-proj.pos[1])<= proj.rad):
+                self.crumble()
+                break
+            
 
 ###################
 ##   PARTICLES   ##
 ###################
 
 class particle(entity):
-    def __init__(self, id, rad, x, y, xVel, yVel):
+    def __init__(self, rad, x, y, xVel, yVel):
+        entity.__init__(self)
         self.pos = [x,y]
         self.vel = [xVel,yVel]
         self.rad = rad
         particleList.append(self)
-        entity.__init__(self, id)
     def draw(self):
-        ctx.create_oval(self.pos[0]-self.rad,self.pos[1]-self.rad,self.pos[0]+self.rad,self.pos[1]+self.rad, fill = "lightblue", outline = "white")
+        ctx.create_oval(self.pos[0]-self.rad, self.pos[1]-self.rad,self.pos[0]+self.rad,self.pos[1]+self.rad, fill = "lightblue", outline = "white")
     def update(self):
         self.draw()
         entity.update(self)
@@ -266,6 +280,9 @@ def mainUpdate(): #updates everything
     global t, entityList
     for i in range(len(entityList)): #loops through the list of entities and calls update in all of them
         entityList[i].update()
+    for i,platform in enumerate(platformList):
+        if platform.delete:
+            platformList.pop(i)
     ctx.update()
     ctx.delete(ALL)
     t += 1
@@ -313,7 +330,7 @@ def runGame():
             mainUpdate()
             drawHUD()
             if t%2 == 0:
-                p = platform(t,500)
+                p = platform(500)
 
 root.after( 0, runGame )
 
