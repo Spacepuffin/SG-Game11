@@ -18,15 +18,12 @@ def setInitialValues():
     score = 0 #score; also counter for time
     scrSpd = 20 #scroll speed
     gravity = 2
-    
-    
 
     #Lists of Object instances:
     global entityList, platformList, projectileList, particleList
     entityList = []
     platformList = []
     projectileList = []
-    particleList = []
 
     #player instance:
     global p
@@ -38,6 +35,17 @@ def setInitialValues():
     keyD = False
     xMouse = 0
     yMouse = 0
+
+    #Buttons:
+
+    
+    global quitButton, pauseButton, resetButton
+    quitButton = Button( root, text = "E X I T", command = root.destroy, font = ("Small Fonts", 24), relief = FLAT)
+    quitButton.pack
+    pauseButton = Button( root, text = "R E S U M E", command = pauseGame, font = ("Small Fonts", 24), relief = FLAT)
+    pauseButton.pack
+    resetButton = Button( root, text = "R E S E T", command = resetGame, font = ("Small Fonts", 24), relief = FLAT)
+    resetButton.pack
     
     #Images:
     global pBodyImgs, pArmImgs, tutImgs
@@ -76,6 +84,7 @@ class entity():
         self.vel = [0,0]
         self.isFixed = False #determines if it moves relative to everything or not
         self.airborne = True
+        self.delete = False #Marks this object for deletion
     def update(self):
         if self.isFixed:
             self.pos[0] -= scrSpd
@@ -190,14 +199,14 @@ class projectile(entity):
         self.vel = pVector(30 + uniform(-5,5), p.angleMouse + uniform(-0.5,0.5))
         self.rad = randint(10,30)
         
-        
-        
     def draw(self):
         ctx.create_oval(self.pos[0]-self.rad,self.pos[1]-self.rad,self.pos[0]+self.rad,self.pos[1]+self.rad, fill = "#da9d3f", outline = "#da9d3f")
         
     def update(self):
         self.draw()
         entity.update(self)
+        if self.pos[1] >= 900:
+            self.delete = True
         
 ##################
 ##   PLATFORM   ##
@@ -210,20 +219,19 @@ class platform(entity):
         self.length = 50
         self.pos = [x,y]
         self.isFixed = True
-        self.delete = False #Marks this object for deletion
     def crumble(self): #destroy self
-        if (self.pos[0] + self.length >= -10):
-            for i in range(randint(3,5)):
-                particle(randint(3,5), randint(self.pos[0],self.pos[0]+self.length),randint(self.pos[1],self.pos[1]+self.length),*pVector(randint(20,30), uniform(-pi*5/6,-pi*3/4)))
+        for i in range(randint(3,5)):
+            particle(randint(3,5), randint(self.pos[0],self.pos[0]+self.length),randint(self.pos[1],self.pos[1]+self.length/2),*pVector(randint(20,30), uniform(-pi*5/6,-pi*3/4)))
         self.delete = True
 
     def draw(self):
-        if not self.delete:
-            ctx.create_rectangle(self.pos[0], self.pos[1], self.pos[0] + self.length, self.pos[1] + 5, fill = "white", outline = "white")
+        ctx.create_rectangle(self.pos[0], self.pos[1], self.pos[0] + self.length, self.pos[1] + 5, fill = "white", outline = "white")
 
     def update(self):
         self.draw()
         entity.update(self)
+        if self.pos[0] + self.length <= -100:# delete self if off screen by enough
+            self.delete = True
         if (self.pos[0] + self.length >= p.pos[0]-24 and p.pos[1] + 24 == self.pos[1]): #if the player is touching the platform
             if (self.pos[0] + self.length - scrSpd < p.pos[0]-24 + p.vel[0]): #if the player is stepping off the platform
                 self.crumble()
@@ -243,24 +251,38 @@ class particle(entity):
         self.pos = [x,y]
         self.vel = [xVel,yVel]
         self.rad = rad
-        particleList.append(self)
     def draw(self):
         ctx.create_oval(self.pos[0]-self.rad, self.pos[1]-self.rad,self.pos[0]+self.rad,self.pos[1]+self.rad, fill = "lightblue", outline = "white")
     def update(self):
         self.draw()
         entity.update(self)
+        if self.pos[1] >= 810:
+            self.delete = True
         
 
 ##   Pause Function   ##
 
 def pauseGame():
-    global game
-    print("Pause Game")
+    global game, quitButton, pauseButton, resetButton
     if game:
         game = False
+        ctx.create_text(600,300, text = "- p a u s e -", font = ("Small Fonts", 96, "bold"), fill = "White")
+        quitButton.place(x=275, y=400, width=150, height=60)
+        pauseButton.place(x=500, y=400, width=200, height=60)
+        resetButton.place(x=775, y=400, width=150, height=60)
     else:
         game = True
+        quitButton.place(x=-200, y=400, width=150, height=60) # Hide the buttons when not paused
+        pauseButton.place(x=-200, y=400, width=150, height=60)
+        resetButton.place(x=-200, y=400, width=150, height=60)
 
+def resetGame():
+    global quitButton, pauseButton, resetButton
+    quitButton.place(x=-200, y=400, width=150, height=60) # Hide the buttons when not paused
+    pauseButton.place(x=-200, y=400, width=150, height=60)
+    resetButton.place(x=-200, y=400, width=150, height=60)
+    setInitialValues()
+    
 ##   Draw HUD   ##
 
 def drawHUD():
@@ -275,17 +297,40 @@ def drawHUD():
     ctx.create_rectangle(30,230, 60, 230-(p.shotCharge), fill = gaugeColour, outline = "white", width = 3)
     ctx.create_polygon(63,130,70,135,70,125, fill="white", outline="white")
 
+##   Platform Layout Generator   ##
+def platGenerator():
+    row1 = [0,0,0,0,0] # Next 5 values in each row
+    row2 = [0,0,0,0,0]
+    row3 = [0,0,0,0,0]
+    if t%scrSpd == 0:
+        print("")
+        
+
 ##   Main Update   ##
 def mainUpdate(): #updates everything
-    global t, entityList
-    for i in range(len(entityList)): #loops through the list of entities and calls update in all of them
-        entityList[i].update()
-    for i,platform in enumerate(platformList):
-        if platform.delete:
-            platformList.pop(i)
-    ctx.update()
-    ctx.delete(ALL)
+    global score, t, entityList
+
+    for entity in entityList: #loops through the list of entities and calls update in all of them
+        entity.update()
+    while True:
+        for i, entity in enumerate(entityList): #Remove one item from entitylist at once.
+            if entity.delete: #Remove entities that are marked for deletion.
+                entityList.pop(i)
+                if type(entity) == platform:
+                    for p,plat in enumerate(platformList):
+                        if plat.delete:
+                            platformList.pop(p)
+                            break
+                if type(entity) == projectile:
+                    for q,proj in enumerate(projectileList):
+                        if proj.delete:
+                            projectileList.pop(q)
+                            break
+                break
+        else:
+            break #Break from the loop if there are no more objects marked for deletion.
     t += 1
+    score += 1
 
 ##   Input Handlers   ##
 
@@ -325,12 +370,14 @@ def keyUpHandler( event ):
 def runGame():
     setInitialValues()
     while True:
-        sleep(1/30)
         if game:
+            ctx.delete(ALL)
             mainUpdate()
             drawHUD()
             if t%2 == 0:
                 p = platform(500)
+        ctx.update()
+        sleep(1/30)
 
 root.after( 0, runGame )
 
