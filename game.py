@@ -4,7 +4,9 @@ from time import *
 from random import *
 
 root = Tk()
-ctx = Canvas( root, width=1200, height=800, background="dodgerblue" )
+root.overrideredirect(True)
+root.geometry("{0}x{1}+0+0".format(root.winfo_screenwidth(), root.winfo_screenheight()))
+ctx = Canvas( root, width=1280, height=1024, background="dodgerblue" )
 ctx.pack()
 
 ##############################
@@ -12,13 +14,13 @@ ctx.pack()
 ##############################
 def setInitialValues():
     #General Variables:
-    global game, t, score, scrSpd, gravity
+    global game, t, score, scrSpd, gravity, platGen, platChoices
     game = True
     t = 0
     score = 0 #score; also counter for time
-    scrSpd = 20 #scroll speed
+    scrSpd = 25 #scroll speed
     gravity = 2
-
+    platGen = [1,1,1,1] #Whether each row is producing platforms
     #Lists of Object instances:
     global entityList, platformList, projectileList, particleList
     entityList = []
@@ -28,17 +30,15 @@ def setInitialValues():
     #player instance:
     global p
     p = player()
+    
     #Input-related Variables:
     global keyA, keyD, xMouse, yMouse
-    
     keyA = False
     keyD = False
     xMouse = 0
     yMouse = 0
 
     #Buttons:
-
-    
     global quitButton, pauseButton, resetButton
     quitButton = Button( root, text = "E X I T", command = root.destroy, font = ("Small Fonts", 24), relief = FLAT)
     quitButton.pack
@@ -49,11 +49,9 @@ def setInitialValues():
     
     #Images:
     global pBodyImgs, pArmImgs, tutImgs
-    
     pBodyImgs = []
     pArmImgs = []
     tutImgs = []
-    
     for i in range(14): # load Character body images
         fileName = "assets\character" + format(i, '04d')+ ".gif"
         image = PhotoImage(file = fileName)
@@ -67,6 +65,13 @@ def setInitialValues():
         image = PhotoImage(file = fileName)
         tutImgs.append(image)
 
+    #Platforms at the Start of the Game:
+    for i in range(26):
+        platform(350,i*50+5)
+        platform(550,i*50+5)
+        platform(750,i*50+5)
+        platform(950,i*50+5)
+        
 def pVector(magnitude, angle):
 	x = magnitude*cos(angle)
 	y = magnitude*sin(angle)
@@ -102,8 +107,9 @@ class entity():
 class player(entity):
     def __init__(self):
         entity.__init__(self)
-        self.pos = [400, -50]
+        self.pos = [400, 300]
         self.shotCharge = 0
+        self.health = 5
         self.invulnerable = False
         self.moveSpeed = 10
         self.angleMouse = 0
@@ -147,11 +153,8 @@ class player(entity):
                 elif self.pos[1] == platform.pos[1] -24:
                     self.airborne = False
                     break
-                else:
-                    self.airborne = True
-                break
-            else:
-                self.airborne = True
+        else: #if the loop is not broken (No platforms were touched):
+           self.airborne = True
                 
     def onClick(self): #Fire the cannons! (spill the hot drinks!)
         if self.shotCharge >= 100:
@@ -180,7 +183,7 @@ class player(entity):
             else:
                 self.pos[0] += min(1.5,(400-self.pos[0])/10)
                 
-        if self.pos[1] >= 850:  #If you fall off the stage:
+        if self.pos[1] >= 1100:  #If you fall off the stage:
             self.pos = [400, -50]
             self.vel = [0,0]
         
@@ -197,7 +200,7 @@ class projectile(entity):
         entity.__init__(self)
         self.pos = [p.pos[0],p.pos[1]]
         self.vel = pVector(30 + uniform(-5,5), p.angleMouse + uniform(-0.5,0.5))
-        self.rad = randint(10,30)
+        self.rad = randint(13,30)
         
     def draw(self):
         ctx.create_oval(self.pos[0]-self.rad,self.pos[1]-self.rad,self.pos[0]+self.rad,self.pos[1]+self.rad, fill = "#da9d3f", outline = "#da9d3f")
@@ -205,7 +208,7 @@ class projectile(entity):
     def update(self):
         self.draw()
         entity.update(self)
-        if self.pos[1] >= 900:
+        if self.pos[1] >= 1100:
             self.delete = True
         
 ##################
@@ -213,10 +216,10 @@ class projectile(entity):
 ##################
 
 class platform(entity):
-    def __init__(self, y, x=1200): # inputting an x value is optional. It defaults to the right side of the screen.
+    def __init__(self, y, x=1280, length=50): # inputting an x value is optional. It defaults to the right side of the screen.
         platformList.append(self)
         entity.__init__(self)
-        self.length = 50
+        self.length = length
         self.pos = [x,y]
         self.isFixed = True
     def crumble(self): #destroy self
@@ -256,7 +259,7 @@ class particle(entity):
     def update(self):
         self.draw()
         entity.update(self)
-        if self.pos[1] >= 810:
+        if self.pos[1] >= 1100:
             self.delete = True
         
 
@@ -266,17 +269,19 @@ def pauseGame():
     global game, quitButton, pauseButton, resetButton
     if game:
         game = False
-        ctx.create_text(600,300, text = "- p a u s e -", font = ("Small Fonts", 96, "bold"), fill = "White")
-        quitButton.place(x=275, y=400, width=150, height=60)
-        pauseButton.place(x=500, y=400, width=200, height=60)
-        resetButton.place(x=775, y=400, width=150, height=60)
+        ctx.create_text(640,300, text = "- p a u s e -", font = ("Small Fonts", 112, "bold"), fill = "White")
+        quitButton.place(x=350, y=600, width=150, height=60)
+        pauseButton.place(x=540, y=600, width=200, height=60)
+        resetButton.place(x=780, y=600, width=150, height=60)
     else:
         game = True
-        quitButton.place(x=-200, y=400, width=150, height=60) # Hide the buttons when not paused
-        pauseButton.place(x=-200, y=400, width=150, height=60)
-        resetButton.place(x=-200, y=400, width=150, height=60)
+        quitButton.place(x=-200, y=-200, width=150, height=60) # Hide the buttons when not paused
+        pauseButton.place(x=-200, y=-200, width=150, height=60)
+        resetButton.place(x=-200, y=-200, width=150, height=60)
 
-def resetGame():
+##   Reset The Game   ##
+
+def resetGame(): #Essentially just setInitialValues but it also moves the buttons back first.
     global quitButton, pauseButton, resetButton
     quitButton.place(x=-200, y=400, width=150, height=60) # Hide the buttons when not paused
     pauseButton.place(x=-200, y=400, width=150, height=60)
@@ -299,12 +304,21 @@ def drawHUD():
 
 ##   Platform Layout Generator   ##
 def platGenerator():
-    row1 = [0,0,0,0,0] # Next 5 values in each row
-    row2 = [0,0,0,0,0]
-    row3 = [0,0,0,0,0]
-    if t%scrSpd == 0:
-        print("")
-        
+    global platGen
+    platChoices = [5]*3 + [8]*2 + [10] + [-5]*3 + [-8] #in the beginning, there are many platforms.
+    
+    if (t%2==0):# Every other frame:
+        for i,row in enumerate(platGen):
+            if row > 1:
+                platform((i+1)*200+150)
+                platGen[i] -=1
+            elif row < -1:
+                platGen[i] += 1
+            elif row == 1:
+                platform((i+1)*200+150)
+                platGen[i] = choice(platChoices)
+            else:
+                platGen[i] = choice(platChoices)
 
 ##   Main Update   ##
 def mainUpdate(): #updates everything
@@ -329,6 +343,7 @@ def mainUpdate(): #updates everything
                 break
         else:
             break #Break from the loop if there are no more objects marked for deletion.
+    platGenerator()
     t += 1
     score += 1
 
@@ -374,8 +389,6 @@ def runGame():
             ctx.delete(ALL)
             mainUpdate()
             drawHUD()
-            if t%2 == 0:
-                p = platform(500)
         ctx.update()
         sleep(1/30)
 
