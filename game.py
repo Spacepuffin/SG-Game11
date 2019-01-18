@@ -18,17 +18,18 @@ def setInitialValues():
     game = True
     t = 0
     score = 0 #score; also counter for time
-    scrSpd = 25 #scroll speed
+    scrSpd = 17 #scroll speed
     gravity = 2
     platGen = []#Whether each row is producing platforms
     for i in range(4):
         platGen.append(choice([-2,-5,-13]))
         
     #Lists of Object instances:
-    global entityList, platformList, projectileList, particleList
+    global entityList, platformList, projectileList, snowmanList
     entityList = []
     platformList = []
     projectileList = []
+    snowmanList = []
 
     #player instance:
     global p
@@ -164,6 +165,7 @@ class player(entity):
             for i in range(5):
                 projectile()
             self.shotCharge -= 100
+            snowman(1100,500)
             
     def update(self):
         if self.shotCharge < 200:
@@ -222,6 +224,55 @@ class projectile(entity):
         entity.update(self)
         if self.pos[1] >= 1100:
             self.delete = True
+
+
+#########################
+##   SNOWMAN ENEMIES   ##
+#########################
+
+class snowman(entity):
+    def __init__(self, x,y):
+        snowmanList.append(self)
+        entity.__init__(self)
+        self.pos = [x,y]
+        self.speedMod = min(1+sqrt(score)/30,4)
+        self.baseSpeed = -20
+        self.vel = [self.baseSpeed,0]
+
+    def draw(self):
+        ctx.create_oval(self.pos[0]-24,self.pos[1]-24,self.pos[0]+24,self.pos[1]+24, fill = "#bf8d5f", outline = "#da9d3f")
+
+    def checkCollisions(self):
+        for platform in platformList:
+            if platform.pos[0] <= self.pos[0] + 24 and platform.pos[0] + platform.length >= self.pos[0] - 24: 
+                if platform.pos[1] >= self.pos[1] + 24 and platform.pos[1] <= self.pos[1] + 24 + self.vel[1]:
+                    self.pos[1] = platform.pos[1] -24
+                    self.vel[1] = 0
+                    self.vel[0] = self.baseSpeed#Set running speed to 0 when landing.
+                    self.airborne = False
+                    break #Stop checking for collisions after the first one.
+                elif self.pos[1] == platform.pos[1] -24:
+                    self.airborne = False
+                    break
+                
+        else: #if the loop is not broken (No platforms were touched):
+           self.airborne = True
+           
+    def update(self):
+        self.draw()
+        entity.update(self)
+
+        self.checkCollisions()
+        
+        ## Converge to a faster speed on ground. 
+        if self.airborne: 
+            self.vel[0] += (self.baseSpeed*self.speedMod - self.vel[0])/10
+        else:
+            self.vel[0] *= 1.8
+
+        self.speedMod = min(1+sqrt(score)/30,4)
+        if self.pos[1] >= 1100:
+            self.delete = True
         
 ##################
 ##   PLATFORM   ##
@@ -267,7 +318,7 @@ class particle(entity):
         self.vel = [xVel,yVel]
         self.rad = rad
     def draw(self):
-        ctx.create_oval(self.pos[0]-self.rad, self.pos[1]-self.rad,self.pos[0]+self.rad,self.pos[1]+self.rad, fill = "lightblue", outline = "white")
+        ctx.create_oval(self.pos[0]-self.rad, self.pos[1]-self.rad,self.pos[0]+self.rad,self.pos[1]+self.rad, fill = "white", outline = "white")
     def update(self):
         self.draw()
         entity.update(self)
@@ -286,11 +337,19 @@ def pauseGame():
         quitButton.place(x=350, y=600, width=150, height=60)
         pauseButton.place(x=540, y=600, width=200, height=60)
         resetButton.place(x=780, y=600, width=150, height=60)
+        
     else:
         game = True
-        quitButton.place(x=-200, y=-200, width=150, height=60) # Hide the buttons when not paused
-        pauseButton.place(x=-200, y=-200, width=150, height=60)
-        resetButton.place(x=-200, y=-200, width=150, height=60)
+        quitButton.destroy()
+        pauseButton.destroy()
+        resetButton.destroy()
+        
+        quitButton = Button( root, text = "E X I T", command = root.destroy, font = ("Small Fonts", 24), relief = FLAT) 
+        quitButton.pack
+        pauseButton = Button( root, text = "R E S U M E", command = pauseGame, font = ("Small Fonts", 24), relief = FLAT)
+        pauseButton.pack
+        resetButton = Button( root, text = "R E S E T", command = resetGame, font = ("Small Fonts", 24), relief = FLAT)
+        resetButton.pack
 
 ##   End Game Function   ##
 def endGame():
@@ -306,9 +365,9 @@ def endGame():
 
 def resetGame(): #Essentially just setInitialValues but it also moves the buttons back first.
     global quitButton, pauseButton, resetButton
-    quitButton.place(x=-200, y=400, width=150, height=60) # Hide the buttons when not paused
-    pauseButton.place(x=-200, y=400, width=150, height=60)
-    resetButton.place(x=-200, y=400, width=150, height=60)
+    quitButton.destroy()
+    pauseButton.destroy()
+    resetButton.destroy()
     setInitialValues()
     
 ##   Draw HUD   ##
@@ -316,7 +375,20 @@ def resetGame(): #Essentially just setInitialValues but it also moves the button
 def drawHUD():
     global score, p
     #Tutorial Images
-    ctx.create_image(self.pos[0], self.pos[1], image = pBodyImgs[13], anchor = CENTER) AAAAAAaa
+    
+    if tutorial == 2: #If it's the Keyboard Tutorial
+        ctx.create_text(200,300, text = "Use A and D to move horizontally.",font = ("Small Fonts", 30, "bold"), anchor = NW, fill = "White")
+        if t%6<=2:
+            ctx.create_image(950, 320, image = tutImgs[2], anchor = CENTER)
+        else:
+            ctx.create_image(950, 320, image = tutImgs[3], anchor = CENTER)
+            
+    if tutorial == 1: #If it's the Mouse Tutorial
+        ctx.create_text(300,300, text = "Click to spill your Hot Cocoa!",font = ("Small Fonts", 30, "bold"), anchor = NW, fill = "White")
+        if t%6<=2:
+            ctx.create_image(950, 320, image = tutImgs[0], anchor = CENTER)
+        else:
+            ctx.create_image(950, 320, image = tutImgs[1], anchor = CENTER)
 
     #Ammo Gauge
     gaugeColour = ""
@@ -377,7 +449,7 @@ def platGenerator():
 
 ##   Main Update   ##
 def mainUpdate(): #updates everything
-    global score, t, entityList
+    global score, t, entityList, scrSpd
 
     for entity in entityList: #loops through the list of entities and calls update in all of them
         entity.update()
@@ -399,15 +471,20 @@ def mainUpdate(): #updates everything
         else:
             break #Break from the loop if there are no more objects marked for deletion.
     platGenerator()
+    scrSpd= int(min(17+sqrt(score)/5,25))
     t += 1
-    score += 1
+    if not (tutorial > 0): #Don't count score during tutorial
+        score += 1
 
 ##   Input Handlers   ##
 
 def mouseClickHandler( event ):
-    global p
+    global p, tutorial
 
     p.onClick() #call the Onclick function in the player class
+
+    if tutorial == 1:
+        tutorial = 0
 
 def mouseMotionHandler( event ):
     global xMouse, yMouse
@@ -416,15 +493,19 @@ def mouseMotionHandler( event ):
     yMouse = event.y
 
 def keyDownHandler( event ):
-    global keyA, keyD
+    global keyA, keyD, tutorial
     
     if event.keysym in ["Escape", "p", "P", "q", "Q"]: # Bind Escape Key, P and Q to pause
         pauseGame()
     if event.keysym in ["a", "A"]:
         keyA = True
+        if tutorial == 2:
+            tutorial = 1
     if event.keysym in ["d", "D"]:      
         keyD = True
-        
+        if tutorial == 2:
+            tutorial = 1
+            
 def keyUpHandler( event ):
     global keyA, keyD
                         
@@ -439,13 +520,15 @@ def keyUpHandler( event ):
     
 def runGame():
     setInitialValues()
-    global tutorial = 2
+    global tutorial
+    tutorial = 2
     while True:
         if game:
             ctx.delete(ALL)
             mainUpdate()
             drawHUD()
         ctx.update()
+        
         sleep(1/30)
     
 
