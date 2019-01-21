@@ -18,7 +18,7 @@ def setInitialValues():
     game = True
     t = 0
     score = 0 #score; also counter for time
-    scrSpd = 17 #scroll speed
+    scrSpd = 12 #scroll speed
     gravity = 2
     platGen = []#Whether each row is producing platforms
     for i in range(4):
@@ -70,8 +70,8 @@ def setInitialValues():
         tutImgs.append(image)
 
     #Platforms at the Start of the Game:
-    for i in range(26):
-        platform(550,i*50+5)
+    for i in range(27):
+        platform(550,i*48+5)
         
 def pVector(magnitude, angle):
 	x = magnitude*cos(angle)
@@ -151,9 +151,6 @@ class player(entity):
                     self.vel[0] = 0#Set running speed to 0 when landing.
                     self.airborne = False
                     break #Stop checking for collisions after the first one.
-                elif self.pos[1] == platform.pos[1] -24:
-                    self.airborne = False
-                    break
         else: #if the loop is not broken (No platforms were touched):
            self.airborne = True
                 
@@ -236,7 +233,7 @@ class snowman(entity):
         entity.__init__(self)
         self.pos = [x,y]
         self.speedMod = min(1+sqrt(score)/30,4)
-        self.baseSpeed = -20
+        self.baseSpeed = -10
         self.vel = [self.baseSpeed,0]
 
     def draw(self):
@@ -248,12 +245,13 @@ class snowman(entity):
                 if platform.pos[1] >= self.pos[1] + 24 and platform.pos[1] <= self.pos[1] + 24 + self.vel[1]:
                     self.pos[1] = platform.pos[1] -24
                     self.vel[1] = 0
-                    self.vel[0] = self.baseSpeed#Set running speed to 0 when landing.
+                    self.vel[0] = self.baseSpeed-scrSpd#Set running speed to base speed when landing.
                     self.airborne = False
+                    if (self.pos[0] + self.vel[0] + 24 < platform.pos[0]-scrSpd): #if the snowman is stepping off the platform
+                        if platform.neighbors in [[0,1],[0,0]]: #if the snowman is at the end of the group of platforms
+                            if p.pos[1]>= self.pos[1]:
+                                self.vel[1] -= 30 # jump
                     break #Stop checking for collisions after the first one.
-                elif self.pos[1] == platform.pos[1] -24:
-                    self.airborne = False
-                    break
                 
         else: #if the loop is not broken (No platforms were touched):
            self.airborne = True
@@ -266,9 +264,9 @@ class snowman(entity):
         
         ## Converge to a faster speed on ground. 
         if self.airborne: 
-            self.vel[0] += (self.baseSpeed*self.speedMod - self.vel[0])/10
+            self.vel[0] += ((self.baseSpeed-scrSpd)*self.speedMod - self.vel[0])/10
         else:
-            self.vel[0] *= 1.8
+            self.vel[0] *= self.speedMod
 
         self.speedMod = min(1+sqrt(score)/30,4)
         if self.pos[1] >= 1100:
@@ -279,23 +277,30 @@ class snowman(entity):
 ##################
 
 class platform(entity):
-    def __init__(self, y, x=1280, length=50): # inputting an x value is optional. It defaults to the right side of the screen.
+    def __init__(self, y, x=1280, length=48): # inputting an x value is optional. It defaults to the right side of the screen.
         platformList.append(self)
         entity.__init__(self)
         self.length = length
         self.pos = [x,y]
         self.isFixed = True
+        self.neighbors = [0,0] #whether the block has adjacent blocks
+        
     def crumble(self): #destroy self
         for i in range(randint(3,5)):
             particle(randint(3,5), randint(self.pos[0],self.pos[0]+self.length),randint(self.pos[1],self.pos[1]+self.length/2),*pVector(randint(20,30), uniform(-pi*5/6,-pi*3/4)))
         self.delete = True
 
     def draw(self):
-        ctx.create_rectangle(self.pos[0], self.pos[1], self.pos[0] + self.length, self.pos[1] + 5, fill = "white", outline = "white")
+        if self.neighbors == [0,1]:
+            ctx.create_rectangle(self.pos[0], self.pos[1], self.pos[0] + self.length, self.pos[1] + 5, fill = "green", outline = "white")
+        elif self.neighbors == [1,0]:
+            ctx.create_rectangle(self.pos[0], self.pos[1], self.pos[0] + self.length, self.pos[1] + 5, fill = "blue", outline = "white")
+        elif self.neighbors == [0,0]:
+            ctx.create_rectangle(self.pos[0], self.pos[1], self.pos[0] + self.length, self.pos[1] + 5, fill = "red", outline = "white")
+        else:
+            ctx.create_rectangle(self.pos[0], self.pos[1], self.pos[0] + self.length, self.pos[1] + 5, fill = "white", outline = "white")
 
     def update(self):
-        self.draw()
-        entity.update(self)
         if self.pos[0] + self.length <= -100:# delete self if off screen by enough
             self.delete = True
         if (self.pos[0] + self.length >= p.pos[0]-24 and p.pos[1] + 24 == self.pos[1]): #if the player is touching the platform
@@ -306,6 +311,26 @@ class platform(entity):
                 self.crumble()
                 break
             
+        for platform in platformList:
+            if platform != self:
+                if self.pos[1] == platform.pos[1]:
+                    if platform.pos[0] <= self.pos[0] <= platform.pos[0]+platform.length+24: #if there is a platform directly to the left of this platform:
+                        self.neighbors[0] = 1
+                        break
+        else:
+            self.neighbors[0] = 0
+            
+        for platform in platformList:
+            if self.pos[1] == platform.pos[1]:
+                if platform.pos[0] <= self.pos[0]+self.length < platform.pos[0]+platform.length: #if there is a platform directly to the right of this platform:
+                    self.neighbors[1] = 1
+                    break
+        else:
+            self.neighbors[1] = 0
+            
+        self.draw()
+        entity.update(self)
+        
 
 ###################
 ##   PARTICLES   ##
@@ -447,6 +472,12 @@ def platGenerator():
                 else:
                     platGen[i] = choice(platChoices)
 
+def platGenerator():
+    genPositions = [375,575,775,975]
+
+    AAAAAAAAAAAAAAAAAAAAAAa
+
+
 ##   Main Update   ##
 def mainUpdate(): #updates everything
     global score, t, entityList, scrSpd
@@ -471,7 +502,7 @@ def mainUpdate(): #updates everything
         else:
             break #Break from the loop if there are no more objects marked for deletion.
     platGenerator()
-    scrSpd= int(min(17+sqrt(score)/5,25))
+    scrSpd= int(min(17+sqrt(score)/5,24))
     t += 1
     if not (tutorial > 0): #Don't count score during tutorial
         score += 1
