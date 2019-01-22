@@ -14,7 +14,7 @@ ctx.pack()
 ##############################
 def setInitialValues():
     #General Variables:
-    global game, t, score, scrSpd, gravity, platGen, platChoices
+    global game, t, score, scrSpd, gravity, platGen, platCounter, snowmanChance
     game = True
     t = 0
     score = 0 #score; also counter for time
@@ -23,7 +23,19 @@ def setInitialValues():
     platGen = []#Whether each row is producing platforms
     for i in range(4):
         platGen.append(choice([-2,-5,-13]))
-        
+    platCounter = 0
+    snowmanChance = 0
+
+
+    #Background-related stuff
+    global background1, background2, background3, bInc1, bInc2, bInc3 # I didn't use 3 dimensional arrays here for the sake of readability.
+    background1 = [[0,320],[300,620],[400,520],[650,770],[1050,370]] #list of points for the first background part.
+    background2 = [[0,640],[200,440],[550,790],[650,690],[850,890],[1100,640]]
+    background3 = [[0,960],[150,1110],[350,910],[600,1160],[900,860],[1150,1110]]
+    bInc1 = 1 #whether to go up or down next
+    bInc2 = 1
+    bInc3 = 1
+
     #Lists of Object instances:
     global entityList, platformList, projectileList, snowmanList
     entityList = []
@@ -52,9 +64,10 @@ def setInitialValues():
     resetButton.pack
     
     #Images:
-    global pBodyImgs, pArmImgs, tutImgs, platImgs
+    global pBodyImgs, pArmImgs, snowmanImgs, tutImgs, platImgs
     pBodyImgs = []
     pArmImgs = []
+    snowmanImgs = []
     tutImgs = []
     platImgs = []
     for i in range(14): # load Character body images
@@ -66,6 +79,10 @@ def setInitialValues():
         fileName = "assets\mugArm" + format(i, '04d')+ ".gif"
         image = PhotoImage(file = fileName)
         pArmImgs.append(image)
+    for i in range(8): #load platform images
+        fileName = "assets\snowman"+ format(i, '04d')+ ".gif"
+        image = PhotoImage(file = fileName)
+        snowmanImgs.append(image)
     for i in range(4): #load tutorial images
         fileName = "assets\Tut" + format(i, '04d')+ ".gif"
         image = PhotoImage(file = fileName)
@@ -168,7 +185,6 @@ class player(entity):
             for i in range(5):
                 projectile()
             self.shotCharge -= 100
-            snowman(1100,500)
             
     def update(self):
         if self.shotCharge < 200:
@@ -234,16 +250,16 @@ class projectile(entity):
 #########################
 
 class snowman(entity):
-    def __init__(self, x,y):
+    def __init__(self, y, x = 1300):
         snowmanList.append(self)
         entity.__init__(self)
         self.pos = [x,y]
-        self.speedMod = min(1+sqrt(score)/30,4)
+        self.speedMod = 1
         self.baseSpeed = -10
-        self.vel = [self.baseSpeed,0]
+        self.vel = [self.baseSpeed-scrSpd,0]
 
     def draw(self):
-        ctx.create_oval(self.pos[0]-24,self.pos[1]-24,self.pos[0]+24,self.pos[1]+24, fill = "#bf8d5f", outline = "#da9d3f")
+        ctx.create_image(self.pos[0], self.pos[1], image = snowmanImgs[t%8], anchor = CENTER)
 
     def checkCollisions(self):
         for platform in platformList:
@@ -253,28 +269,43 @@ class snowman(entity):
                     self.vel[1] = 0
                     self.vel[0] = self.baseSpeed-scrSpd#Set running speed to base speed when landing.
                     self.airborne = False
-                    if (self.pos[0] + self.vel[0] + 24 < platform.pos[0]-scrSpd): #if the snowman is stepping off the platform
-                        if platform.neighbors in [[0,1],[0,0]]: #if the snowman is at the end of the group of platforms
-                            if p.pos[1]>= self.pos[1]:
-                                self.vel[1] -= 30 # jump
+                    if platform.neighbors in [[0,1],[0,0]]: #if the snowman is at the end of the group of platforms
+                        if p.pos[1]<= self.pos[1]:
+                            self.vel[1] -= 30 # jump
                     break #Stop checking for collisions after the first one.
-                
         else: #if the loop is not broken (No platforms were touched):
            self.airborne = True
-           
+        
     def update(self):
         self.draw()
         entity.update(self)
 
         self.checkCollisions()
         
-        ## Converge to a faster speed on ground. 
+        ## Converge to base speed in air. 
         if self.airborne: 
             self.vel[0] += ((self.baseSpeed-scrSpd)*self.speedMod - self.vel[0])/10
         else:
-            self.vel[0] *= self.speedMod
+            self.vel[0] *= self.speedMod #Accelerate when on the ground.
 
-        self.speedMod = min(1+sqrt(score)/30,4)
+        self.speedMod = min(1+sqrt(score)/50,2)
+
+        for proj in projectileList: #Test for collision with projectiles
+            if (hypot(self.pos[0]-proj.pos[0],self.pos[1]-proj.pos[1]) <= proj.rad+24):
+                for i in range(10):
+                    particle(randint(5,10), uniform(self.pos[0]-24,self.pos[0]+24),uniform(self.pos[1]-24,self.pos[1]+24),*pVector(randint(20,30), uniform(-pi*5/6,-pi*3/4)))
+                self.delete = True
+                p.shotCharge += 100
+                break
+        
+        if hypot(p.pos[0]-self.pos[0],p.pos[1]-self.pos[1])<= 48: #Test for collisions with player
+            if p.invulnerable <= 0:
+                p.health-=1
+                p.invulnerable = 60
+                for i in range(10):
+                    particle(randint(5,10), uniform(self.pos[0]-24,self.pos[0]+24),uniform(self.pos[1]-24,self.pos[1]+24),*pVector(randint(20,30), uniform(-pi*5/6,-pi*3/4)))
+                self.delete = True
+
         if self.pos[1] >= 1100:
             self.delete = True
         
@@ -283,7 +314,7 @@ class snowman(entity):
 ##################
 
 class platform(entity):
-    def __init__(self, y, x=1280, length=48): # inputting an x value is optional. It defaults to the right side of the screen.
+    def __init__(self, y, x=1325, length=48): # inputting an x value is optional. It defaults to the right side of the screen.
         platformList.append(self)
         entity.__init__(self)
         self.length = length
@@ -292,7 +323,7 @@ class platform(entity):
         self.neighbors = [0,0] #whether the block has adjacent blocks
         
     def crumble(self): #destroy self
-        for i in range(randint(3,5)):
+        for i in range(3):
             particle(randint(3,5), randint(self.pos[0],self.pos[0]+self.length),randint(self.pos[1],self.pos[1]+self.length/2),*pVector(randint(20,30), uniform(-pi*5/6,-pi*3/4)))
         self.delete = True
 
@@ -342,7 +373,7 @@ class platform(entity):
 ##   PARTICLES   ##
 ###################
 
-class particle(entity):
+class particle(entity): #Snow particles when platforms are broken or snowmen die
     def __init__(self, rad, x, y, xVel, yVel):
         entity.__init__(self)
         self.pos = [x,y]
@@ -440,7 +471,7 @@ def drawHUD():
 
 ##   Platform Layout Generator   ##
 def platGenerator():
-    global platGen
+    global platGen, platCounter
     platChoices = [5] + [8]*2 + [13]*4 + [21]*2 + [26] #At the start, there is a higher chance for longer platforms
     gapChoices = [3] + [5]*2 + [8] 
 
@@ -462,7 +493,9 @@ def platGenerator():
         gapChoices += [13] + [21]*2
         gapChoices.remove(5)
     
-    if (t%2==0):# Every other frame:
+    
+    if platCounter+scrSpd >= 48:
+        platCounter=0
         if tutorial>0: #if it's the tutorial, only make platforms on one level with no gaps
             platform(550)
         else:
@@ -477,15 +510,75 @@ def platGenerator():
                     platGen[i] = choice(gapChoices)*-1 #alternate between platforms and gaps.
                 else:
                     platGen[i] = choice(platChoices)
-
+    platCounter += scrSpd
+    
 def snowmanGenerator():
-    genPositions = [375,575,775,975]
+    global snowmanChance
+    genPositions = [325,525,725,925]
+    if tutorial == 0:
+        if randint(0,100)<= snowmanChance+2:
+            snowman(choice(genPositions))
+        snowmanChance = sqrt(score)/10
 
+## Draw Background ##
+
+def drawBackground():
+    global background1, background2, background3, bInc1, bInc2, bInc3
+    if background1[-1][0]<= 1100:
+        while True:
+            increment = randint(50,300)
+            if 0 < background1[-1][1] + increment <= 426: #if the resulting point lands within the acceptable range:
+                background1.append([background1[-1][0]+increment, background1[-1][1]+increment *bInc1])
+                break
+            bInc1 *= -1
+    if background2[-1][0]<= 1100:
+        while True:
+            increment = randint(50,300)
+            if 426 < background2[-1][1] + increment <= 853: #if the resulting point lands within the acceptable range:
+                background2.append([background2[-1][0]+increment, background2[-1][1]+increment *bInc2])
+                break
+            bInc2 *= -1
+    if background3[-1][0]<= 1100:
+        while True:
+            increment = randint(50,300)
+            if 853 < background3[-1][1] + increment <= 1280: #if the resulting point lands within the acceptable range:
+                background3.append([background3[-1][0]+increment, background3[-1][1]+increment * bInc3])
+                break
+            bInc3 *= -1
+            
+    ptsList1 = [] # Convert to one dimensional array to feed into tkinter polygon
+    ptsList2 = []
+    ptsList3 = []
+    for i in range(len(background1)):
+        ptsList1 += background1[i]
+    for i in range(len(background2)):
+        ptsList2 += background2[i]
+    for i in range(len(background3)):
+        ptsList3 += background3[i]
+        
+    ctx.create_polygon(*ptsList1,1280,1024,0,1024, fill = "purple")
+    ctx.create_polygon(*ptsList2,1280,1024,0,1024, fill = "magenta")
+    ctx.create_polygon(*ptsList3,1280,1024,0,1024, fill = "pink")
+
+    for point in background1:
+        point[0]-=3
+    for point in background2:
+        point[0]-=5
+    for point in background3:
+        point[0]-=7
+        
+    if background1[1][0]<0: #if the next point is off the screen on the left side, delete this point.
+        background1.pop(0)
+    if background2[1][0]<0:
+        background2.pop(0)
+    if background3[1][0]<0: 
+        background3.pop(0)
+        
 
 ##   Main Update   ##
 def mainUpdate(): #updates everything
     global score, t, entityList, scrSpd
-
+    drawBackground()
     for entity in entityList: #loops through the list of entities and calls update in all of them
         entity.update()
     while True:
@@ -505,6 +598,7 @@ def mainUpdate(): #updates everything
                 break
         else:
             break #Break from the loop if there are no more objects marked for deletion.
+    snowmanGenerator()
     platGenerator()
     scrSpd= int(min(17+sqrt(score)/5,24))
     t += 1
