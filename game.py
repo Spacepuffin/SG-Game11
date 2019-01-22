@@ -6,7 +6,7 @@ from random import *
 root = Tk()
 root.overrideredirect(True)
 root.geometry("{0}x{1}+0+0".format(root.winfo_screenwidth(), root.winfo_screenheight()))
-ctx = Canvas( root, width=1280, height=1024, background="dodgerblue" )
+ctx = Canvas( root, width=1280, height=1024, background="#bc7ebc" )
 ctx.pack()
 
 ##############################
@@ -52,23 +52,29 @@ def setInitialValues():
     resetButton.pack
     
     #Images:
-    global pBodyImgs, pArmImgs, tutImgs
+    global pBodyImgs, pArmImgs, tutImgs, platImgs
     pBodyImgs = []
     pArmImgs = []
     tutImgs = []
+    platImgs = []
     for i in range(14): # load Character body images
-        fileName = "assets\character" + format(i, '04d')+ ".gif"
+        #the art program I drew the sprites in automatically names them name0000.gif so I can use a for loop to load many at a time.
+        fileName = "assets\character" + format(i, '04d')+ ".gif" 
         image = PhotoImage(file = fileName)
         pBodyImgs.append(image)
     for i in range(8): # load Arm images
         fileName = "assets\mugArm" + format(i, '04d')+ ".gif"
         image = PhotoImage(file = fileName)
         pArmImgs.append(image)
-    for i in range(4):
+    for i in range(4): #load tutorial images
         fileName = "assets\Tut" + format(i, '04d')+ ".gif"
         image = PhotoImage(file = fileName)
         tutImgs.append(image)
-
+    for i in range(4): #load platform images
+        fileName = "assets\platform"+ format(i, '04d')+ ".gif"
+        image = PhotoImage(file = fileName)
+        platImgs.append(image)
+        
     #Platforms at the Start of the Game:
     for i in range(27):
         platform(550,i*48+5)
@@ -292,13 +298,13 @@ class platform(entity):
 
     def draw(self):
         if self.neighbors == [0,1]:
-            ctx.create_rectangle(self.pos[0], self.pos[1], self.pos[0] + self.length, self.pos[1] + 5, fill = "green", outline = "white")
+            ctx.create_image(self.pos[0], self.pos[1], image = platImgs[0], anchor = NW)
         elif self.neighbors == [1,0]:
-            ctx.create_rectangle(self.pos[0], self.pos[1], self.pos[0] + self.length, self.pos[1] + 5, fill = "blue", outline = "white")
+            ctx.create_image(self.pos[0], self.pos[1], image = platImgs[1], anchor = NW)
         elif self.neighbors == [0,0]:
-            ctx.create_rectangle(self.pos[0], self.pos[1], self.pos[0] + self.length, self.pos[1] + 5, fill = "red", outline = "white")
+            ctx.create_image(self.pos[0], self.pos[1], image = platImgs[2], anchor = NW)
         else:
-            ctx.create_rectangle(self.pos[0], self.pos[1], self.pos[0] + self.length, self.pos[1] + 5, fill = "white", outline = "white")
+            ctx.create_image(self.pos[0], self.pos[1], image = platImgs[3], anchor = NW)
 
     def update(self):
         if self.pos[0] + self.length <= -100:# delete self if off screen by enough
@@ -472,10 +478,8 @@ def platGenerator():
                 else:
                     platGen[i] = choice(platChoices)
 
-def platGenerator():
+def snowmanGenerator():
     genPositions = [375,575,775,975]
-
-    AAAAAAAAAAAAAAAAAAAAAAa
 
 
 ##   Main Update   ##
