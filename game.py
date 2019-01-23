@@ -5,7 +5,7 @@ from random import *
 
 root = Tk()
 root.overrideredirect(True)
-root.geometry("{0}x{1}+0+0".format(root.winfo_screenwidth(), root.winfo_screenheight()))
+root.geometry("{0}x{1}+0+0".format(root.winfo_screenwidth(), root.winfo_screenheight())) # for fullscreen
 ctx = Canvas( root, width=1280, height=1024, background="#6d7d96" )
 ctx.pack()
 
