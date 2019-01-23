@@ -526,6 +526,7 @@ def snowmanGenerator():
         if randint(0,100)<= snowmanChance+1: #start with a 1% chance per frame to spawn a snowman.
             snowman(choice(genPositions))
         snowmanChance = sqrt(score)/10 #Chance per frame to spawn a snowman is proportional to sqrt of score.
+        
 
 ## Draw Background ##
 
@@ -554,9 +555,6 @@ def drawBackground():
     ctx.create_polygon(*ptsLists[1],1280,1024,0,1024, fill = "#152d51")
     ctx.create_polygon(*ptsLists[2],1280,1024,0,1024, fill = "#041530")
     
-        
-
-        
 
 ##   Main Update   ##
 def mainUpdate(): #updates everything
@@ -596,8 +594,8 @@ def mainUpdate(): #updates everything
     drawHUD() #Draw all of the indicators, and buttons and stuff
     t += 1 #keep track of time
 
-##   Input Handlers   ##
 
+##   Input Handlers   ##
 def mouseClickHandler( event ):
     global p, tutorial
 
