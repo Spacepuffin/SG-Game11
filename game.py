@@ -551,9 +551,9 @@ def drawBackground():
         for point in background[i]: #points are smooshed into single list to feed into create_polygon
             ptsLists[i] += point
     
-    ctx.create_polygon(*ptsLists[0],1280,1024,0,1024, fill = "#385177") #use ptsList to draw the mountain ranges
-    ctx.create_polygon(*ptsLists[1],1280,1024,0,1024, fill = "#152d51")
-    ctx.create_polygon(*ptsLists[2],1280,1024,0,1024, fill = "#041530")
+    ctx.create_polygon(1280,1024,0,1024,*ptsLists[0], fill = "#385177") #use ptsList to draw the mountain ranges
+    ctx.create_polygon(1280,1024,0,1024,*ptsLists[1], fill = "#152d51")
+    ctx.create_polygon(1280,1024,0,1024,*ptsLists[2], fill = "#041530")
     
 
 ##   Main Update   ##
