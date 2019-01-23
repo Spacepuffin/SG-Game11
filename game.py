@@ -436,7 +436,7 @@ def drawHUD():
                 ctx.create_image(1000, 320, image = tutImgs[3], anchor = CENTER)
                 
         if tutorial == 1: #If it's the Mouse Tutorial
-            ctx.create_text(300,300, text = "Click to spill your hot cocoa!",font = ("Small Fonts", 30, "bold"), anchor = NW, fill = "White")
+            ctx.create_text(300,300, text = "Click to fire your hot cocoa!",font = ("Small Fonts", 30, "bold"), anchor = NW, fill = "White")
             if t%18<=6:
                 ctx.create_image(950, 320, image = tutImgs[0], anchor = CENTER)
             else:
